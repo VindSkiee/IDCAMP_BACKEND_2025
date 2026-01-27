@@ -3,7 +3,7 @@
 export const shorthands = undefined;
 
 export async function up(pgm) {
-  pgm.createTable('playlist_songs', {
+  pgm.createTable('collaborations', {
     id: {
       type: 'VARCHAR(50)',
       primaryKey: true,
@@ -12,30 +12,30 @@ export async function up(pgm) {
       type: 'VARCHAR(50)',
       notNull: true,
     },
-    song_id: {
+    user_id: {
       type: 'VARCHAR(50)',
       notNull: true,
     },
   });
 
   // Constraints
-  pgm.addConstraint('playlist_songs', 'fk_playlist_songs.playlist_id_playlists.id', {
+  pgm.addConstraint('collaborations', 'fk_collaborations.playlist_id_playlists.id', {
     foreignKeys: {
       columns: 'playlist_id',
       references: 'playlists(id)',
       onDelete: 'CASCADE',
     },
   });
-  
-  pgm.addConstraint('playlist_songs', 'fk_playlist_songs.song_id_songs.id', {
+
+  pgm.addConstraint('collaborations', 'fk_collaborations.user_id_users.id', {
     foreignKeys: {
-      columns: 'song_id',
-      references: 'songs(id)',
+      columns: 'user_id',
+      references: 'users(id)',
       onDelete: 'CASCADE',
     },
   });
 }
 
 export async function down(pgm) {
-  pgm.dropTable('playlist_songs');
+  pgm.dropTable('collaborations');
 }

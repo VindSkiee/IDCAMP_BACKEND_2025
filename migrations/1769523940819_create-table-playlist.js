@@ -1,7 +1,33 @@
 /* eslint-disable camelcase */
 
-exports.shorthands = undefined;
+export const shorthands = undefined;
 
-exports.up = pgm => {};
+export async function up(pgm) {
+  pgm.createTable('playlists', {
+    id: {
+      type: 'VARCHAR(50)',
+      primaryKey: true,
+    },
+    name: {
+      type: 'TEXT',
+      notNull: true,
+    },
+    owner: {
+      type: 'VARCHAR(50)',
+      notNull: true,
+    },
+  });
 
-exports.down = pgm => {};
+  // Foreign Key ke Users
+  pgm.addConstraint('playlists', 'fk_playlists.owner_users.id', {
+    foreignKeys: {
+      columns: 'owner',
+      references: 'users(id)',
+      onDelete: 'CASCADE',
+    },
+  });
+}
+
+export async function down(pgm) {
+  pgm.dropTable('playlists');
+}
