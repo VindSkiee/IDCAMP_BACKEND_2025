@@ -9,8 +9,8 @@ const SongPayloadSchema = Joi.object({
     .min(1900)
     .max(currentYear)
     .required(),
-  genre: Joi.string().max(30).required(),
-  performer: Joi.string().max(20).required(),
+  genre: Joi.string().max(50).required(),
+  performer: Joi.string().max(50).required(),
   duration: Joi.number()
     .integer()
     .allow(null),

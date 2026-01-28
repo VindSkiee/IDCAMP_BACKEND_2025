@@ -1,7 +1,7 @@
 import Joi from 'joi';
 
 const PlaylistPayloadSchema = Joi.object({
-  name: Joi.string().max(20).required(),
+  name: Joi.string().max(50).required(),
 });
 
 const PlaylistSongPayloadSchema = Joi.object({
