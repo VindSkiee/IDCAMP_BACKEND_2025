@@ -2,8 +2,10 @@ import 'dotenv/config';
 
 import express, { json } from 'express';
 import { Pool } from 'pg';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Services
+// Services V1 & V2
 import AlbumsService from './services/postgres/AlbumsService.js';
 import SongsService from './services/postgres/SongsService.js';
 import UsersService from './services/postgres/UsersService.js';
@@ -11,7 +13,13 @@ import AuthenticationsService from './services/postgres/AuthenticationsService.j
 import PlaylistsService from './services/postgres/PlaylistsService.js';
 import CollaborationsService from './services/postgres/CollaborationsService.js';
 
-// Validators
+// Services V3
+import CacheService from './services/redis/CacheService.js';
+import LikesService from './services/postgres/LikesService.js';
+import StorageService from './services/storage/StorageService.js';
+import ProducerService from './services/rabbitmq/ProducerService.js';
+
+// Validators V1 & V2
 import AlbumsValidator from './validator/albums/index.js';
 import SongsValidator from './validator/songs/index.js';
 import UsersValidator from './validator/users/index.js';
@@ -19,13 +27,22 @@ import AuthenticationsValidator from './validator/authentications/index.js';
 import PlaylistsValidator from './validator/playlists/index.js';
 import CollaborationsValidator from './validator/collaborations/index.js';
 
-// API Handlers and Routes
+// Validators V3
+import ExportsValidator from './validator/exports/index.js';
+import UploadsValidator from './validator/uploads/index.js';
+
+// API Handlers and Routes V1 & V2
 import { AlbumsHandler, routes as albumsRoutes } from './api/albums/index.js';
 import { SongsHandler, routes as songsRoutes } from './api/songs/index.js';
 import { UsersHandler, routes as usersRoutes } from './api/users/index.js';
 import { AuthenticationsHandler, routes as authenticationsRoutes } from './api/authentications/index.js';
 import { PlaylistsHandler, routes as playlistsRoutes } from './api/playlists/index.js';
 import { CollaborationsHandler, routes as collaborationsRoutes } from './api/collaborations/index.js';
+
+// API Handlers and Routes V3
+import { ExportsHandler, routes as exportsRoutes } from './api/exports/index.js';
+import { UploadsHandler, routes as uploadsRoutes } from './api/uploads/index.js';
+import { LikesHandler, routes as likesRoutes } from './api/likes/index.js';
 
 // Tokenize
 import TokenManager from './tokenize/TokenManager.js';
@@ -35,6 +52,10 @@ import authMiddleware from './middleware/authMiddleware.js';
 
 // Exceptions
 import ClientError from './exceptions/ClientError.js';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const init = async () => {
   const app = express();
@@ -60,6 +81,13 @@ const init = async () => {
   const collaborationsService = new CollaborationsService(pool);
   const playlistsService = new PlaylistsService(pool, collaborationsService);
 
+  // V3 Services
+  const cacheService = new CacheService();
+  const likesService = new LikesService(pool, cacheService);
+  const storageService = new StorageService(
+    path.resolve(__dirname, 'api/uploads/file/images'),
+  );
+
   // V1 Handlers
   const albumsHandler = new AlbumsHandler(albumsService, AlbumsValidator);
   const songsHandler = new SongsHandler(songsService, SongsValidator);
@@ -84,6 +112,25 @@ const init = async () => {
     CollaborationsValidator,
   );
 
+  // V3 Handlers
+  const exportsHandler = new ExportsHandler(
+    ProducerService,
+    playlistsService,
+    ExportsValidator,
+  );
+  const uploadsHandler = new UploadsHandler(
+    albumsService,
+    storageService,
+    UploadsValidator,
+  );
+  const likesHandler = new LikesHandler(likesService);
+
+  // Static files for uploaded images
+  app.use(
+    '/upload/images',
+    express.static(path.resolve(__dirname, 'api/uploads/file/images')),
+  );
+
   // V1 Routes
   app.use('/albums', albumsRoutes(albumsHandler));
   app.use('/songs', songsRoutes(songsHandler));
@@ -93,6 +140,11 @@ const init = async () => {
   app.use('/authentications', authenticationsRoutes(authenticationsHandler));
   app.use('/playlists', playlistsRoutes(playlistsHandler, authMiddleware));
   app.use('/collaborations', collaborationsRoutes(collaborationsHandler, authMiddleware));
+
+  // V3 Routes
+  app.use('/export', exportsRoutes(exportsHandler, authMiddleware));
+  app.use('/albums', uploadsRoutes(uploadsHandler));
+  app.use('/albums', likesRoutes(likesHandler, authMiddleware));
 
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
